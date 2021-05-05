@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	log.Infoln("Beginning to serve on port :9876")
+	log.Infoln("Beginning to serve on port 192.168.30.53:9876")
 
 	// This is just a demo dummyMetric that is initialised and never changed
 	var dummyMetric = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -37,7 +37,7 @@ func main() {
 		w.Write([]byte("</body></html>"))
 	})
 
-	log.Fatalln(http.ListenAndServe(":9876", nil))
+	log.Fatalln(http.ListenAndServe("192.168.30.53:9876", nil))
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request) {

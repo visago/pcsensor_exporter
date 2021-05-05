@@ -16,3 +16,9 @@ probe_pcsensors_temperature_celcius{probe="T2"} 24.5
 # TYPE probe_success gauge
 probe_success 1
 ```
+
+## Building
+```
+go get
+GOOS=linux GOARCH=mips64 go build
+```
