@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"regexp"
@@ -14,11 +15,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 )
 
 func main() {
-	log.Infoln("Beginning to serve on port 192.168.30.53:9876")
+	log.Printf("Beginning to serve on port :9876")
 
 	// This is just a demo dummyMetric that is initialised and never changed
 	var dummyMetric = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -37,7 +37,7 @@ func main() {
 		w.Write([]byte("</body></html>"))
 	})
 
-	log.Fatalln(http.ListenAndServe("192.168.30.53:9876", nil))
+	http.ListenAndServe(":9876", nil)
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request) {
 
 	sensorcount, err := strconv.Atoi(params.Get("count"))
 	if err != nil {
-		sensorcount=2
+		sensorcount = 2
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeoutSeconds*float64(time.Second)))
@@ -82,9 +82,9 @@ func probeHandler(w http.ResponseWriter, r *http.Request) {
 	probeDurationGauge.Set(duration)
 	if success {
 		probeSuccessGauge.Set(1)
-		log.Debugf("Probe of %s succeeded in %0.6f sec(s)\n", target, duration)
+		log.Printf("Probe of %s succeeded in %0.6f sec(s)\n", target, duration)
 	} else {
-		log.Errorf("Probe of %s failed in %0.6f sec(s)\n", target, duration)
+		log.Printf("Probe of %s failed in %0.6f sec(s)\n", target, duration)
 	}
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
@@ -107,7 +107,7 @@ func getTimeout(r *http.Request) (timeoutSeconds float64, err error) {
 }
 
 func probe(ctx context.Context, target string, sensorcount int, registry *prometheus.Registry) (success bool) {
-	log.Debugf("Probing target %s\n", target)
+	log.Printf("Probing target %s\n", target)
 
 	tempGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "probe_pcsensors_temperature_celcius",
@@ -116,33 +116,33 @@ func probe(ctx context.Context, target string, sensorcount int, registry *promet
 	registry.MustRegister(tempGaugeVec)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/", target), nil)
 	if err != nil {
-		log.Errorln("Error making request:", err)
+		log.Printf("Error making request:", err)
 		return false
 	}
 	req = req.WithContext(ctx)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Errorln("Error doing request:", err)
+		log.Printf("Error doing request:", err)
 		return false
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln("Error reading response body:", err)
+		log.Printf("Error reading response body:", err)
 	}
-	for sensor := 1;  sensor<=sensorcount; sensor++ {
-		re := regexp.MustCompile(fmt.Sprintf("T%0d<p>.+?(\\d+\\.\\d+)",sensor))
+	for sensor := 1; sensor <= sensorcount; sensor++ {
+		re := regexp.MustCompile(fmt.Sprintf("T%0d<p>.+?(\\d+\\.\\d+)", sensor))
 		match := re.FindStringSubmatch(string(body))
 		if match != nil {
 			f, err := strconv.ParseFloat(match[1], 64)
-			if err != nil { 
-				log.Errorln("Error converting ",match[1], " to float -", err)
+			if err != nil {
+				log.Printf("Error converting ", match[1], " to float -", err)
 				return false
-				
-			}  else {
-				sensorstring := fmt.Sprintf("T%0d",sensor)
+
+			} else {
+				sensorstring := fmt.Sprintf("T%0d", sensor)
 				tempGaugeVec.WithLabelValues(sensorstring)
 				tempGaugeVec.WithLabelValues(sensorstring).Add(f)
 			}
